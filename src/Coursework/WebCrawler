@@ -1,0 +1,100 @@
+package Coursework;
+
+import java.io.*;
+import java.net.*;
+import java.util.*;
+import java.util.concurrent.*;
+
+public class WebCrawler {
+
+    private static final int MAX_DEPTH = 3; // maximum depth of links to follow
+    private static final int MAX_THREADS = 10; // maximum number of threads to use
+
+    private Set<String> visited = new HashSet<>(); // set of visited URLs
+    private BlockingQueue<URL> queue = new LinkedBlockingQueue<>(); // queue of URLs to visit
+
+    public void crawl(URL startUrl) {
+        ExecutorService executor = Executors.newFixedThreadPool(MAX_THREADS); // create thread pool
+
+        try {
+            queue.put(startUrl); // add starting URL to queue
+
+            for (int i = 0; i < MAX_THREADS; i++) { // create worker threads
+                executor.execute(new Worker());
+            }
+
+            executor.shutdown(); // wait for all threads to finish
+
+            while (!executor.isTerminated()) {}
+        } catch (InterruptedException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private class Worker implements Runnable {
+
+        @Override
+        public void run() {
+            try {
+                while (true) {
+                    URL url = queue.take(); // take URL from queue
+
+                    if (!visited.contains(url.toString())) {
+                        visited.add(url.toString()); // mark URL as visited
+
+                        String html = downloadHtml(url); // download HTML of page
+
+                        if (html != null) {
+                            List<URL> links = extractLinks(html); // extract links from HTML
+
+                            for (URL link : links) {
+                                if (!visited.contains(link.toString())) {
+                                    queue.put(link); // add unvisited links to queue
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private String downloadHtml(URL url) {
+            try {
+                HttpURLConnection conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestMethod("GET");
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+
+                int responseCode = conn.getResponseCode();
+
+                if (responseCode == HttpURLConnection.HTTP_OK) {
+                    BufferedReader in = new BufferedReader(new InputStreamReader(conn.getInputStream()));
+                    StringBuilder html = new StringBuilder();
+                    String line;
+
+                    while ((line = in.readLine()) != null) {
+                        html.append(line);
+                    }
+
+                    in.close();
+
+                    return html.toString();
+                }
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+
+            return null;
+        }
+
+        private List<URL> extractLinks(String html) {
+            List<URL> links = new ArrayList<>();
+
+            // TODO: implement link extraction logic
+
+            return links;
+        }
+    }
+}
